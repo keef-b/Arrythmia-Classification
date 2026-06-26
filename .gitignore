@@ -1,0 +1,45 @@
+# Data files
+data/raw/
+data/processed/*.npy
+data/processed/*.npz
+data/processed/*.csv
+data/processed/*.parquet
+
+# Model and output artifacts
+models/*.joblib
+models/*.pkl
+models/*.h5
+outputs/*.png
+outputs/*.jpg
+outputs/*.jpeg
+outputs/*.svg
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
