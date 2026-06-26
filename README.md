@@ -1,70 +1,106 @@
-# Binary ECG Classification (Normal vs Abnormal)
+# Arrhythmia Classification
 
-This project contains the complete work completed so far for binary ECG beat classification using the MIT-BIH Arrhythmia Database.
+Multi-class ECG beat classification using the MIT-BIH Arrhythmia Database.
 
-## Project Goal
+This repository is for the five-class arrhythmia classifier, not the binary normal-vs-abnormal baseline.
 
-Train and evaluate a model that classifies each heartbeat into:
-- `0`: Normal beat
-- `1`: Abnormal beat
+## Classes
 
-This folder is intentionally scoped to binary classification only.
+The dataset builder keeps five beat annotations and maps them to numeric labels:
+
+| Label | Symbol | Beat type |
+| --- | --- | --- |
+| 0 | N | Normal beat |
+| 1 | L | Left bundle branch block beat |
+| 2 | R | Right bundle branch block beat |
+| 3 | V | Premature ventricular contraction |
+| 4 | A | Atrial premature beat |
 
 ## Project Structure
 
-```
-binary_normal_abnormal/
-	data/
-		raw/
-			mit-bih-arrhythmia-database-1.0.0/   # Original MIT-BIH files (.hea/.atr/.xws, etc.)
-		processed/
-			X.npy                                # Feature matrix for training
-			y.npy                                # Binary labels (0 normal, 1 abnormal)
-	models/
-		random_forest_binary.joblib            # Saved trained model
-	outputs/
-		confusion_matrix.png                   # Evaluation plot
-	src/
-		build_dataset.py
-		ecg_preprocessing.py
-		load_data.py
-		plot_ecg.py
-		train_random_forest.py
-		verify_class_distribution.py
-		beats_and_annotations.py
-		explore_annotations.py
-	README.md
+```text
+.
+├── data/
+│   ├── raw/                 # Local MIT-BIH files; ignored by git
+│   └── processed/           # Generated X.npy/y.npy files; ignored by git
+├── models/
+│   └── random_forest_multiclass.pkl
+├── outputs/
+│   ├── classification_report.txt
+│   ├── confusion_matrix.png
+│   └── feature_importance.png
+├── scripts/
+│   └── build_dataset.py     # Multi-class dataset builder
+├── src/
+│   ├── build_dataset.py
+│   ├── train_random_forest.py
+│   └── exploration/preprocessing helpers
+└── requirements.txt
 ```
 
-## End-to-End Workflow
+## Current Results
 
-1. Place/keep the MIT-BIH raw dataset in `data/raw/mit-bih-arrhythmia-database-1.0.0/`.
-2. Build the processed binary dataset:
+The committed run trains a random forest classifier on five beat classes.
 
-	 ```powershell
-	 cd src
-	 python build_dataset.py
-	 ```
+```text
+              precision    recall  f1-score   support
 
-3. Train and evaluate the random forest model:
+           N       0.99      1.00      0.99     17445
+           L       0.99      0.99      0.99      1923
+           R       1.00      0.99      0.99      1652
+           V       0.97      0.96      0.97      1578
+           A       0.97      0.84      0.90       613
 
-	 ```powershell
-	 python train_random_forest.py
-	 ```
+    accuracy                           0.99     23211
+   macro avg       0.98      0.96      0.97     23211
+weighted avg       0.99      0.99      0.99     23211
+```
 
-4. Review artifacts:
-- Model file in `models/random_forest_binary.joblib`
-- Confusion matrix image in `outputs/confusion_matrix.png`
+## Setup
 
-## What Is Included So Far
+Create and activate a virtual environment, then install dependencies:
 
-- Data loading and preprocessing utilities
-- Binary dataset generation (`X.npy`, `y.npy`)
-- Random forest training and evaluation
-- Class distribution and annotation exploration scripts
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
-## Scope Boundary
+## Data
 
-This folder is the stable baseline for binary normal-vs-abnormal detection.
+Download the MIT-BIH Arrhythmia Database locally and place it under `data/raw/`.
 
-Any next phase (for example, multi-class arrhythmia case prediction) should be created as a separate sibling project folder to keep experiments and artifacts isolated.
+The raw data and generated NumPy arrays are intentionally not committed because they are large/generated artifacts.
+
+## Build the Dataset
+
+```powershell
+python src\build_dataset.py
+```
+
+This creates:
+
+```text
+data/processed/X.npy
+data/processed/y.npy
+```
+
+## Train the Model
+
+```powershell
+python src\train_random_forest.py
+```
+
+This writes:
+
+```text
+models/random_forest_multiclass.pkl
+outputs/classification_report.txt
+outputs/confusion_matrix.png
+outputs/feature_importance.png
+```
+
+## Notes
+
+- The binary normal-vs-abnormal project is kept separate from this repo.
+- The current model is a strong baseline, but the atrial premature beat class has lower recall than the other classes and is the clearest next place to improve.

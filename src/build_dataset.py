@@ -1,72 +1,110 @@
+import os
+from collections import Counter
 from pathlib import Path
 
-import wfdb
 import numpy as np
+import wfdb
 
-from ecg_preprocessing import bandpass_filter
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw" / "mit-bih-arrhythmia-database-1.0.0"
+RAW_DATA_DIR = PROJECT_ROOT / "data" / "raw"
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 
-records = [
-    "100","101","102","103","104",
-    "105","106","107","108","109",
-    "111","112","113","114","115",
-    "116","117","118","119","121",
-    "122","123","124","200","201",
-    "202","203","205","207","208",
-    "209","210","212","213","214",
-    "215","217","219","220","221",
-    "222","223","228","230","231",
-    "232","233","234"
-]
+WINDOW = 100
+
+LABEL_MAP = {
+    "N": 0,  # Normal beat
+    "L": 1,  # Left bundle branch block beat
+    "R": 2,  # Right bundle branch block beat
+    "V": 3,  # Premature ventricular contraction
+    "A": 4,  # Atrial premature beat
+}
+
+LABEL_NAMES = {
+    0: "N",
+    1: "L",
+    2: "R",
+    3: "V",
+    4: "A",
+}
 
 
-before = 100
-after = 150
+def find_records(raw_data_dir: Path) -> list[Path]:
+    records = []
+    for root, _, files in os.walk(raw_data_dir):
+        for filename in files:
+            if filename.lower().endswith(".atr"):
+                records.append(Path(root) / filename[:-4])
+    return sorted(records)
 
-X = []
-y = []
 
-NORMAL = {"N", "L", "R"}
+def main() -> None:
+    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    records = find_records(RAW_DATA_DIR)
 
-for record_name in records:
+    print("=" * 60)
+    print("MIT-BIH MULTI-CLASS DATASET BUILDER")
+    print("=" * 60)
+    print(f"Raw data folder: {RAW_DATA_DIR}")
+    print(f"Found {len(records)} records")
 
-    print("Processing", record_name)
+    if not records:
+        raise RuntimeError(f"No .atr files found under {RAW_DATA_DIR}")
 
-    record_path = str(RAW_DATA_DIR / record_name)
-    record = wfdb.rdrecord(record_path)
-    ann = wfdb.rdann(record_path, "atr")
+    X = []
+    y = []
 
-    # STEP 1: CLEAN SIGNAL (IMPORTANT CHANGE)
-    signal = bandpass_filter(record.p_signal[:, 0])
+    for idx, record_path in enumerate(records, start=1):
+        print(f"[{idx}/{len(records)}] Processing {record_path.name}")
 
-    # STEP 2: LOOP THROUGH BEATS
-    for sample, label in zip(ann.sample, ann.symbol):
-
-        start = sample - before
-        end = sample + after
-
-        if start < 0 or end >= len(signal):
+        try:
+            record = wfdb.rdrecord(str(record_path))
+            annotation = wfdb.rdann(str(record_path), "atr")
+        except Exception as exc:
+            print(f"Skipping {record_path}: {exc}")
             continue
 
-        beat = signal[start:end]
+        signal = record.p_signal[:, 0]
 
-        if len(beat) != before + after:
-            continue
+        for sample, symbol in zip(annotation.sample, annotation.symbol):
+            if symbol not in LABEL_MAP:
+                continue
 
-        X.append(beat)
+            start = sample - WINDOW
+            end = sample + WINDOW
+            if start < 0 or end >= len(signal):
+                continue
 
-        # binary label
-        y.append(0 if label in NORMAL else 1)
+            beat = signal[start:end]
+            if len(beat) != 2 * WINDOW:
+                continue
 
-X = np.array(X)
-y = np.array(y)
+            beat_std = np.std(beat)
+            if beat_std == 0:
+                continue
 
-print("Final dataset:", X.shape, y.shape)
+            X.append((beat - np.mean(beat)) / beat_std)
+            y.append(LABEL_MAP[symbol])
 
-PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-np.save(PROCESSED_DIR / "X.npy", X)
-np.save(PROCESSED_DIR / "y.npy", y)
+    X = np.array(X, dtype=np.float32)
+    y = np.array(y, dtype=np.int32)
 
+    print("\nDataset summary")
+    print("-" * 30)
+    print(f"X shape: {X.shape}")
+    print(f"y shape: {y.shape}")
+
+    counts = Counter(y)
+    for class_id in sorted(counts):
+        print(f"{LABEL_NAMES[class_id]} ({class_id}): {counts[class_id]}")
+
+    np.save(PROCESSED_DIR / "X.npy", X)
+    np.save(PROCESSED_DIR / "y.npy", y)
+
+    print("\nSaved")
+    print(PROCESSED_DIR / "X.npy")
+    print(PROCESSED_DIR / "y.npy")
+
+
+if __name__ == "__main__":
+    main()

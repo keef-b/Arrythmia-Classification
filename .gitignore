@@ -1,5 +1,6 @@
 # Data files
 data/raw/
+data/processed/
 data/processed/*.npy
 data/processed/*.npz
 data/processed/*.csv
@@ -13,6 +14,11 @@ outputs/*.png
 outputs/*.jpg
 outputs/*.jpeg
 outputs/*.svg
+outputs/*.txt
+!models/random_forest_multiclass.pkl
+!outputs/classification_report.txt
+!outputs/confusion_matrix.png
+!outputs/feature_importance.png
 
 # Virtual environment
 venv/
